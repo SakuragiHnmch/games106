@@ -26,7 +26,7 @@ public:
 			glm::mat4 projection;
             glm::mat4 view;
 			glm::mat4 model;
-			glm::vec4 lightPos = glm::vec4(5.0f, 5.0f, -5.0f, 1.0f);
+            glm::vec4 lightPos[4];
 			glm::vec4 viewPos;
 		} values;
 	} shaderData;
@@ -119,7 +119,7 @@ public:
     
 	void loadAssets()
 	{
-        vkglTF::descriptorBindingFlags  = vkglTF::DescriptorBindingFlags::ImageBaseColor;
+        vkglTF::descriptorBindingFlags  = vkglTF::DescriptorBindingFlags::ImageBaseColor | vkglTF::DescriptorBindingFlags::ImageNormalMap | vkglTF::DescriptorBindingFlags::ImagePbr;
 //		glTFModel.loadFromFile(getAssetPath() + "models/CesiumMan/glTF/CesiumMan.gltf", vulkanDevice, queue, 0);
         glTFModel.loadFromFile(getAssetPath() + "buster_drone/busterDrone.gltf", vulkanDevice, queue, 0);
 
@@ -148,7 +148,7 @@ public:
             // Binding 0 : Vertex shader uniform buffer
             vks::initializers::descriptorSetLayoutBinding(
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                VK_SHADER_STAGE_VERTEX_BIT,
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 0)
         };
 
@@ -164,7 +164,7 @@ public:
             vkglTF::descriptorSetLayoutImage,
             vkglTF::descriptorSetLayoutUbo,
         };
-        VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+        VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), 3);
 
         VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
     }
@@ -216,6 +216,7 @@ public:
             vkglTF::VertexComponent::Color,
             vkglTF::VertexComponent::Joint0,
             vkglTF::VertexComponent::Weight0,
+            vkglTF::VertexComponent::Tangent
         });
 
 		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
@@ -263,6 +264,13 @@ public:
 		shaderData.values.view = camera.matrices.view;
         shaderData.values.model = glm::mat4(1.0f);
 		shaderData.values.viewPos = camera.viewPos;
+        
+        shaderData.values.lightPos[0] = glm::vec4(5.0f, 5.0f, -5.0f, 1.0f);
+        shaderData.values.lightPos[1] = glm::vec4(-5.0f, 5.0f, -5.0f, 1.0f);
+        shaderData.values.lightPos[2] = glm::vec4(-5.0f, -5.0f, 5.0f, 1.0f);
+        shaderData.values.lightPos[3] = glm::vec4(5.0f, -5.0f, 5.0f, 1.0f);
+
+        
 		memcpy(shaderData.buffer.mapped, &shaderData.values, sizeof(shaderData.values));
 	}
 

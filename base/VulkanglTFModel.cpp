@@ -414,7 +414,6 @@ void vkglTF::Texture::fromglTfImage(tinygltf::Image &gltfimage, std::string path
 	samplerInfo.anisotropyEnable = VK_FALSE;
 	samplerInfo.maxLod = (float)mipLevels;
 	samplerInfo.maxAnisotropy = 8.0f;
-//	samplerInfo.anisotropyEnable = VK_TRUE;
 	VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
 
 	VkImageViewCreateInfo viewInfo{};
@@ -446,27 +445,52 @@ void vkglTF::Material::createDescriptorSet(VkDescriptorPool descriptorPool, VkDe
 	std::vector<VkDescriptorImageInfo> imageDescriptors{};
 	std::vector<VkWriteDescriptorSet> writeDescriptorSets{};
 	if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
-		imageDescriptors.push_back(baseColorTexture->descriptor);
+		imageDescriptors.emplace_back(baseColorTexture->descriptor);
 		VkWriteDescriptorSet writeDescriptorSet{};
 		writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		writeDescriptorSet.descriptorCount = 1;
 		writeDescriptorSet.dstSet = descriptorSet;
-		writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
+		writeDescriptorSet.dstBinding = 0;
 		writeDescriptorSet.pImageInfo = &baseColorTexture->descriptor;
-		writeDescriptorSets.push_back(writeDescriptorSet);
+		writeDescriptorSets.emplace_back(writeDescriptorSet);
 	}
 	if (normalTexture && descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
-		imageDescriptors.push_back(normalTexture->descriptor);
+		imageDescriptors.emplace_back(normalTexture->descriptor);
 		VkWriteDescriptorSet writeDescriptorSet{};
 		writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		writeDescriptorSet.descriptorCount = 1;
 		writeDescriptorSet.dstSet = descriptorSet;
-		writeDescriptorSet.dstBinding = static_cast<uint32_t>(writeDescriptorSets.size());
+		writeDescriptorSet.dstBinding = 1;
 		writeDescriptorSet.pImageInfo = &normalTexture->descriptor;
-		writeDescriptorSets.push_back(writeDescriptorSet);
+		writeDescriptorSets.emplace_back(writeDescriptorSet);
 	}
+    
+    if (occlusionTexture  && (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr)) {
+        imageDescriptors.emplace_back(occlusionTexture->descriptor);
+        VkWriteDescriptorSet writeDescriptorSet{};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSet.descriptorCount = 1;
+        writeDescriptorSet.dstSet = descriptorSet;
+        writeDescriptorSet.dstBinding = 2;
+        writeDescriptorSet.pImageInfo = &occlusionTexture->descriptor;
+        writeDescriptorSets.emplace_back(writeDescriptorSet);
+    }
+    
+    if (metallicRoughnessTexture && (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr)) {
+        imageDescriptors.emplace_back(metallicRoughnessTexture->descriptor);
+        VkWriteDescriptorSet writeDescriptorSet{};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSet.descriptorCount = 1;
+        writeDescriptorSet.dstSet = descriptorSet;
+        writeDescriptorSet.dstBinding = 3;
+        writeDescriptorSet.pImageInfo = &metallicRoughnessTexture->descriptor;
+        writeDescriptorSets.emplace_back(writeDescriptorSet);
+    }
+    
 	vkUpdateDescriptorSets(device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
 
@@ -1353,6 +1377,9 @@ void vkglTF::Model::loadFromFile(std::string filename, vks::VulkanDevice *device
 		if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
 			poolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageCount });
 		}
+        if (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr) {
+            poolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageCount * 2 });
+        }
 	}
 	VkDescriptorPoolCreateInfo descriptorPoolCI{};
 	descriptorPoolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1385,11 +1412,19 @@ void vkglTF::Model::loadFromFile(std::string filename, vks::VulkanDevice *device
 		if (descriptorSetLayoutImage == VK_NULL_HANDLE) {
 			std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
 			if (descriptorBindingFlags & DescriptorBindingFlags::ImageBaseColor) {
+                // albedo / diffuse map, binding = 0
 				setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
 			}
 			if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
+                // normal map, binding = 1
 				setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
 			}
+            if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
+                // ao map, binding = 2
+                setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
+                // metallicRoughness map, binding = 3
+                setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
+            }
 			VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{};
 			descriptorLayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
@@ -1436,6 +1471,7 @@ void vkglTF::Model::drawNode(Node *node, VkCommandBuffer commandBuffer, uint32_t
 				if (renderFlags & RenderFlags::BindImages) {
 					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, bindImageSet, 1, &material.descriptorSet, 0, nullptr);
 				}
+                
 				vkCmdDrawIndexed(commandBuffer, primitive->indexCount, 1, primitive->firstIndex, 0, 0);
 			}
 		}
