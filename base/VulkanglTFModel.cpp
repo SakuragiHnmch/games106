@@ -467,27 +467,41 @@ void vkglTF::Material::createDescriptorSet(VkDescriptorPool descriptorPool, VkDe
 		writeDescriptorSets.emplace_back(writeDescriptorSet);
 	}
     
-    if (occlusionTexture  && (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr)) {
-        imageDescriptors.emplace_back(occlusionTexture->descriptor);
+    if (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr) {
         VkWriteDescriptorSet writeDescriptorSet{};
+
+        if (occlusionTexture == nullptr) {
+            imageDescriptors.emplace_back(emptyTexture->descriptor);
+            writeDescriptorSet.pImageInfo = &emptyTexture->descriptor;
+        } else {
+            imageDescriptors.emplace_back(occlusionTexture->descriptor);
+            writeDescriptorSet.pImageInfo = &occlusionTexture->descriptor;
+        }
+
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSet.descriptorCount = 1;
         writeDescriptorSet.dstSet = descriptorSet;
         writeDescriptorSet.dstBinding = 2;
-        writeDescriptorSet.pImageInfo = &occlusionTexture->descriptor;
         writeDescriptorSets.emplace_back(writeDescriptorSet);
     }
     
-    if (metallicRoughnessTexture && (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr)) {
-        imageDescriptors.emplace_back(metallicRoughnessTexture->descriptor);
+    if (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr) {
         VkWriteDescriptorSet writeDescriptorSet{};
+
+        if (metallicRoughnessTexture == nullptr) {
+            imageDescriptors.emplace_back(emptyTexture->descriptor);
+            writeDescriptorSet.pImageInfo = &emptyTexture->descriptor;
+        } else {
+            imageDescriptors.emplace_back(metallicRoughnessTexture->descriptor);
+            writeDescriptorSet.pImageInfo = &metallicRoughnessTexture->descriptor;
+        }
+
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptorSet.descriptorCount = 1;
         writeDescriptorSet.dstSet = descriptorSet;
         writeDescriptorSet.dstBinding = 3;
-        writeDescriptorSet.pImageInfo = &metallicRoughnessTexture->descriptor;
         writeDescriptorSets.emplace_back(writeDescriptorSet);
     }
     
@@ -1026,7 +1040,7 @@ void vkglTF::Model::loadImages(tinygltf::Model &gltfModel, vks::VulkanDevice *de
 void vkglTF::Model::loadMaterials(tinygltf::Model &gltfModel)
 {
 	for (tinygltf::Material &mat : gltfModel.materials) {
-		vkglTF::Material material(device);
+		vkglTF::Material material(device, &emptyTexture);
 		if (mat.values.find("baseColorTexture") != mat.values.end()) {
 			material.baseColorTexture = getTexture(gltfModel.textures[mat.values["baseColorTexture"].TextureIndex()].source);
 		}
@@ -1070,7 +1084,7 @@ void vkglTF::Model::loadMaterials(tinygltf::Model &gltfModel)
 		materials.push_back(material);
 	}
 	// Push a default material at the end of the list for meshes with no material assigned
-	materials.push_back(Material(device));
+	materials.emplace_back(device, &emptyTexture);
 }
 
 void vkglTF::Model::loadAnimations(tinygltf::Model &gltfModel)

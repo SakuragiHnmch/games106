@@ -86,12 +86,14 @@ namespace vkglTF
 		vkglTF::Texture* occlusionTexture = nullptr;
 		vkglTF::Texture* emissiveTexture = nullptr;
 
-		vkglTF::Texture* specularGlossinessTexture;
-		vkglTF::Texture* diffuseTexture;
+		vkglTF::Texture* specularGlossinessTexture = nullptr;
+		vkglTF::Texture* diffuseTexture = nullptr;
 
-		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        vkglTF::Texture* emptyTexture = nullptr;
 
-		Material(vks::VulkanDevice* device) : device(device) {};
+        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+
+		Material(vks::VulkanDevice* device, vkglTF::Texture* emptyTex) : device(device), emptyTexture(emptyTex) {};
 		void createDescriptorSet(VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout, uint32_t descriptorBindingFlags);
 	};
 
