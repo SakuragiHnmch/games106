@@ -414,7 +414,7 @@ void vkglTF::Texture::fromglTfImage(tinygltf::Image &gltfimage, std::string path
 	samplerInfo.anisotropyEnable = VK_FALSE;
 	samplerInfo.maxLod = (float)mipLevels;
 	samplerInfo.maxAnisotropy = 8.0f;
-	samplerInfo.anisotropyEnable = VK_TRUE;
+//	samplerInfo.anisotropyEnable = VK_TRUE;
 	VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
 
 	VkImageViewCreateInfo viewInfo{};
@@ -531,11 +531,10 @@ void vkglTF::Node::update() {
 		if (skin) {
 			mesh->uniformBlock.matrix = m;
 			// Update join matrices
-			glm::mat4 inverseTransform = glm::inverse(m);
 			for (size_t i = 0; i < skin->joints.size(); i++) {
 				vkglTF::Node *jointNode = skin->joints[i];
+                // embedded node model matrix in jointMatrix
 				glm::mat4 jointMat = jointNode->getMatrix() * skin->inverseBindMatrices[i];
-				jointMat = inverseTransform * jointMat;
 				mesh->uniformBlock.jointMatrix[i] = jointMat;
 			}
 			mesh->uniformBlock.jointcount = (float)skin->joints.size();
@@ -1416,6 +1415,11 @@ void vkglTF::Model::bindBuffers(VkCommandBuffer commandBuffer)
 void vkglTF::Model::drawNode(Node *node, VkCommandBuffer commandBuffer, uint32_t renderFlags, VkPipelineLayout pipelineLayout, uint32_t bindImageSet)
 {
 	if (node->mesh) {
+        if (renderFlags & RenderFlags::RenderAnimation) {
+            // descriptorset of jointMatrices put in set 2
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &node->mesh->uniformBuffer.descriptorSet, 0, nullptr);
+        }
+        
 		for (Primitive* primitive : node->mesh->primitives) {
 			bool skip = false;
 			const vkglTF::Material& material = primitive->material;
@@ -1484,7 +1488,7 @@ void vkglTF::Model::getSceneDimensions()
 	dimensions.radius = glm::distance(dimensions.min, dimensions.max) / 2.0f;
 }
 
-void vkglTF::Model::updateAnimation(uint32_t index, float time)
+void vkglTF::Model::updateAnimation(uint32_t index, float inTime)
 {
 	if (index > static_cast<uint32_t>(animations.size()) - 1) {
 		std::cout << "No animation with index " << index << std::endl;
@@ -1498,36 +1502,38 @@ void vkglTF::Model::updateAnimation(uint32_t index, float time)
 		if (sampler.inputs.size() > sampler.outputsVec4.size()) {
 			continue;
 		}
+        
+        float time = fmod(inTime, sampler.inputs.back());
 
 		for (auto i = 0; i < sampler.inputs.size() - 1; i++) {
 			if ((time >= sampler.inputs[i]) && (time <= sampler.inputs[i + 1])) {
 				float u = std::max(0.0f, time - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
 				if (u <= 1.0f) {
 					switch (channel.path) {
-					case vkglTF::AnimationChannel::PathType::TRANSLATION: {
-						glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
-						channel.node->translation = glm::vec3(trans);
-						break;
-					}
-					case vkglTF::AnimationChannel::PathType::SCALE: {
-						glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
-						channel.node->scale = glm::vec3(trans);
-						break;
-					}
-					case vkglTF::AnimationChannel::PathType::ROTATION: {
-						glm::quat q1;
-						q1.x = sampler.outputsVec4[i].x;
-						q1.y = sampler.outputsVec4[i].y;
-						q1.z = sampler.outputsVec4[i].z;
-						q1.w = sampler.outputsVec4[i].w;
-						glm::quat q2;
-						q2.x = sampler.outputsVec4[i + 1].x;
-						q2.y = sampler.outputsVec4[i + 1].y;
-						q2.z = sampler.outputsVec4[i + 1].z;
-						q2.w = sampler.outputsVec4[i + 1].w;
-						channel.node->rotation = glm::normalize(glm::slerp(q1, q2, u));
-						break;
-					}
+                        case vkglTF::AnimationChannel::PathType::TRANSLATION: {
+                            glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
+                            channel.node->translation = glm::vec3(trans);
+                            break;
+                        }
+                        case vkglTF::AnimationChannel::PathType::SCALE: {
+                            glm::vec4 trans = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], u);
+                            channel.node->scale = glm::vec3(trans);
+                            break;
+                        }
+                        case vkglTF::AnimationChannel::PathType::ROTATION: {
+                            glm::quat q1;
+                            q1.x = sampler.outputsVec4[i].x;
+                            q1.y = sampler.outputsVec4[i].y;
+                            q1.z = sampler.outputsVec4[i].z;
+                            q1.w = sampler.outputsVec4[i].w;
+                            glm::quat q2;
+                            q2.x = sampler.outputsVec4[i + 1].x;
+                            q2.y = sampler.outputsVec4[i + 1].y;
+                            q2.z = sampler.outputsVec4[i + 1].z;
+                            q2.w = sampler.outputsVec4[i + 1].w;
+                            channel.node->rotation = glm::normalize(glm::slerp(q1, q2, u));
+                            break;
+                        }
 					}
 					updated = true;
 				}

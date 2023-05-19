@@ -1,5 +1,6 @@
 #version 450
 
+// per material descriptor
 layout (set = 1, binding = 0) uniform sampler2D samplerColorMap;
 
 layout (location = 0) in vec3 inNormal;
