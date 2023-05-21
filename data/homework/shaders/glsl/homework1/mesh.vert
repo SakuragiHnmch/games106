@@ -56,4 +56,11 @@ void main()
 		outTangent = vec4(mat3(uboScene.model * uboBone.nodeMatrix) * inTangent.xyz, inTangent.w);
 		gl_Position = uboScene.projection * uboScene.view * vec4(outWorldPos, 1.0);
 	}
+
+	// flip Y
+	outWorldPos.y = -outWorldPos.y;
+	outNormal.y = -outNormal.y;
+	outTangent.y = -outTangent.y;
+	gl_Position.y = -gl_Position.y;
+
 }

@@ -71,9 +71,9 @@ public:
 	{
 		title = "homework1";
 		camera.type = Camera::CameraType::firstperson;
-		camera.flipY = true;
-		camera.setPosition(glm::vec3(2.0f, 0.24f, -2.0f));
-		camera.setRotation(glm::vec3(0.0f, 40.0f, 0.0f));
+//		camera.flipY = true;
+		camera.setPosition(glm::vec3(2.0f, .0f, -3.0f));
+		camera.setRotation(glm::vec3(10.0f, 30.0f, 0.0f));
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 	}
 
@@ -152,11 +152,11 @@ public:
     
 	void loadAssets()
 	{
-        vkglTF::descriptorBindingFlags  = vkglTF::DescriptorBindingFlags::ImageBaseColor | vkglTF::DescriptorBindingFlags::ImageNormalMap | vkglTF::DescriptorBindingFlags::ImagePbr;
-//		glTFModel.loadFromFile(getAssetPath() + "models/CesiumMan/glTF/CesiumMan.gltf", vulkanDevice, queue, 0);
-        glTFModel.loadFromFile(getAssetPath() + "buster_drone/busterDrone.gltf", vulkanDevice, queue, 0);
-
         const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::None;
+
+        vkglTF::descriptorBindingFlags  = vkglTF::DescriptorBindingFlags::ImageBaseColor | vkglTF::DescriptorBindingFlags::ImageNormalMap | vkglTF::DescriptorBindingFlags::ImagePbr;
+        glTFModel.loadFromFile(getAssetPath() + "buster_drone/busterDrone.gltf", vulkanDevice, queue, glTFLoadingFlags);
+
         skybox.loadFromFile(getAssetPath() + "models/cube.gltf", vulkanDevice, queue, glTFLoadingFlags);
         environmentMap.loadFromFile(getAssetPath() + "textures/hdr/gcanyon_cube.ktx", VK_FORMAT_R16G16B16A16_SFLOAT, vulkanDevice, queue);
 	}
@@ -302,7 +302,7 @@ public:
         pipelineCI.layout = skyPipelineLayout;
         depthStencilStateCI.depthTestEnable = false;
         depthStencilStateCI.depthWriteEnable = false;
-        rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
+//        rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
         rasterizationStateCI.polygonMode = VK_POLYGON_MODE_FILL;
         shaderStages[0] = loadShader(getHomeworkShadersPath() + "homework1/skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
         shaderStages[1] = loadShader(getHomeworkShadersPath() + "homework1/skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
