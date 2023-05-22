@@ -22,6 +22,10 @@ layout (set = 0, binding = 0) uniform UBOScene
 	vec4 viewPos;
 } uboScene;
 
+layout (set = 0, binding = 1) uniform samplerCube irradianceMap;
+layout (set = 0, binding = 2) uniform samplerCube prefilterMap;
+layout (set = 0, binding = 3) uniform sampler2D brdfLUT;
+
 #define PI 3.1415926535897932384626433832795
 #define ALBEDO pow(texture(albedoMap, inUV).rgb, vec3(2.2))
 
@@ -84,6 +88,24 @@ vec3 directLightsContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, f
 	return (kD * ALBEDO / PI + specluar) * dotNL;
 }
 
+vec3 prefilteredReflection(vec3 R, float roughness)
+{
+	const float MAX_REFLECTION_LOD = 9.0;
+	float lod = roughness * MAX_REFLECTION_LOD;
+	float lodf = floor(lod);
+	float lodc = ceil(lod);
+	vec3 a = textureLod(prefilterMap, R, lodf).rgb;
+	vec3 b = textureLod(prefilterMap, R, lodc).rgb;
+	return mix(a, b, lod - lodf);
+}
+
+vec3 Tonemap_ACES(vec3 c) {
+    //ACES RRT/ODT curve fit courtesy of Stephen Hill
+	vec3 a = c * (c + 0.0245786) - 0.000090537;
+	vec3 b = c * (0.983729 * c + 0.4329510) + 0.238081;
+	return a / b;
+}
+
 void main() 
 {
 	vec3 N = calculateNormal();
@@ -96,7 +118,7 @@ void main()
 	float ao = texture(aoMap, inUV).r;
 
 	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, ALBEDO, metallic);
+	F0 = mix(F0, albedo, metallic);
 
 	// calculate direct light contribution
 	vec3 Lo = vec3(0.0);
@@ -105,11 +127,31 @@ void main()
 		Lo += directLightsContribution(L, V, N, F0, metallic, roughness);
 	}
 
-	// hard code ambient light
-	// TODO replace ambient light with environments lighting
-	vec3 ambient = vec3(0.03) * albedo * ao;
+	// ambient light
+	// replace hardcode ambient light with environments lighting
+	vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
+
+	vec3 kS = F;
+	vec3 kD = 1.0 -kS;
+	kD *= 1.0 - metallic;
+
+	vec3 irradiance = texture(irradianceMap, N).rgb;
+	vec3 diffuse = irradiance * albedo;
+
+	// sample both prefilterMap and brdfLUT
+	// combine them together as per Split-Sum approximation
+	// to get the IBL specluar part
+	vec3 prefilteredColor = prefilteredReflection(R, roughness);
+	vec2 brdf = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+	vec3 specluar = prefilteredColor * (F * brdf.x + brdf.y);
+
+	// final IBL ambient
+	vec3 ambient = (kD * diffuse + specluar) * ao;
 
 	vec3 color = ambient + Lo;
+
+	// tonemapping
+	color = Tonemap_ACES(color);
 
 	// gamma correction
 	color = pow(color, vec3(1.0 / 2.2));

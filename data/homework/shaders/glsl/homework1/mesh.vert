@@ -58,9 +58,5 @@ void main()
 	}
 
 	// flip Y
-	outWorldPos.y = -outWorldPos.y;
-	outNormal.y = -outNormal.y;
-	outTangent.y = -outTangent.y;
 	gl_Position.y = -gl_Position.y;
-
 }
