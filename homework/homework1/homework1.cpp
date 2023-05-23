@@ -89,11 +89,22 @@ public:
 		if (pipelines.wireframe != VK_NULL_HANDLE) {
 			vkDestroyPipeline(device, pipelines.wireframe, nullptr);
 		}
+        vkDestroyPipeline(device, pipelines.skybox, nullptr);
 
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+        vkDestroyPipelineLayout(device, skyPipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        vkDestroyDescriptorSetLayout(device, skyDescriptorSetLayout, nullptr);
+
 
 		shaderData.buffer.destroy();
+        uniformBuffers.skybox.destroy();
+        uniformBuffers.params.destroy();
+        
+        environmentMap.destroy();
+        prefilteredCube.destroy();
+        irradianceCube.destroy();
+        lutBrdf.destroy();
 	}
 
 	virtual void getEnabledFeatures()
