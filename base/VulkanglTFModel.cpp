@@ -1433,7 +1433,7 @@ void vkglTF::Model::loadFromFile(std::string filename, vks::VulkanDevice *device
                 // normal map, binding = 1
 				setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
 			}
-            if (descriptorBindingFlags & DescriptorBindingFlags::ImageNormalMap) {
+            if (descriptorBindingFlags & DescriptorBindingFlags::ImagePbr) {
                 // ao map, binding = 2
                 setLayoutBindings.push_back(vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(setLayoutBindings.size())));
                 // metallicRoughness map, binding = 3
